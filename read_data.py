@@ -12,9 +12,9 @@ from tqdm import tqdm
 import glob
 import random
 
-splits = ['a', 'b', 'c', 'view', 'illum']
-tps = ['ref','e1','e2','e3','e4','e5','h1','h2','h3','h4','h5',\
-       't1','t2','t3','t4','t5']
+splits = ['a']
+tps = ['0','1','2','3','4','5','6','7','8','9','10',\
+       '11','12','13','14','15','16','17','18']
 
 
 
@@ -88,6 +88,7 @@ class hpatches_sequence_folder:
             noise_path = ''
         for t in self.itr:
             im_path = os.path.join(base, t+noise_path+'.png')
+            print(im_path)
             im = cv2.imread(im_path,0)
             self.N = im.shape[0]/29
             setattr(self, t, np.split(im, self.N))
@@ -133,7 +134,7 @@ def generate_triplets(labels, num_triplets, batch_size):
 
 class HPatches():
     def __init__(self, train=True, transform=None, download=False, train_fnames=[],
-                 test_fnames=[], denoise_model=None, use_clean=False):
+                 test_fnames=[], denoise_model=None, use_clean=True):
         self.train = train
         self.transform = transform
         self.train_fnames = train_fnames

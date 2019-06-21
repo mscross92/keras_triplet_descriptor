@@ -13,10 +13,10 @@ import glob
 import random
 
 splits = ['a']
-tps = ['0','1','2','3','4','5','6','7','8','9','10',\
-       '11','12','13','14','15','16','17','18']
+# tps = ['0','1','2','3','4','5','6','7','8','9','10',\
+#        '11','12','13','14','15','16','17','18']
 
-
+tps = ['0','1','2','3','4']
 
 
 
@@ -260,8 +260,20 @@ class DataGeneratorDesc(keras.utils.Sequence):
         return {'a': img_a, 'p': img_p, 'n': img_n}, y
 
     def on_epoch_end(self):
-        # 'Updates indexes after each epoch'
         self.triplets = generate_triplets(self.labels, self.num_triplets, 32)
+
+        # # Use model to generate descriptors for dataset
+        # descriptors = get_descriptors_for_dataset(model, self.data)
+        # np.save('descriptors.npy', descriptors)
+        # descriptors = np.load('descriptors.npy')
+
+        # # identify closest descriptor to patch (from a different sequence)
+        # hard_negatives = get_hard_negatives(self.data, descriptors)
+        # np.save('descriptors_min_dist.npy', hard_negatives)
+        # hard_negatives = np.load('descriptors_min_dist.npy')
+
+        # 'Updates indexes after each epoch'
+        # self.triplets = generate_triplets(self.labels, hard_negatives, self.num_triplets, 32)
 
     
     

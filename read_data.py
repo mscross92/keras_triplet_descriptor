@@ -107,12 +107,92 @@ def generate_triplets(labels, num_triplets, batch_size):
     indices = create_indices(np.asarray(labels))
     unique_labels = np.unique(np.asarray(labels))
     n_classes = unique_labels.shape[0]
+
+    # add only unique indices in batch
+    already_idxs = set() # initiate as empty set
+    
+    for x in tqdm(range(num_triplets)):
+        if len(already_idxs) >= batch_size:
+            already_idxs = set() # ensures each batch has a different positive class
+        
+        c1 = np.random.randint(0, n_classes) # random anchor class
+        while c1 in already_idxs:
+            c1 = np.random.randint(0, n_classes)
+        already_idxs.add(c1)
+        c2 = np.random.randint(0, n_classes) # random negative class
+        while c1 == c2:
+            c2 = np.random.randint(0, n_classes)
+        if len(indices[c1]) == 2:  # hack to speed up process
+            n1, n2 = 0, 1
+        else:
+            n1 = np.random.randint(0, len(indices[c1])) # random index of anchor in class
+            n2 = np.random.randint(0, len(indices[c1])) # random index of positive in anchor class
+            while n1 == n2:
+                n2 = np.random.randint(0, len(indices[c1]))
+        n3 = np.random.randint(0, len(indices[c2])) # random index of negative in class
+
+        triplets.append([indices[c1][n1], indices[c1][n2], indices[c2][n3]]) # create triplet
+
+
+    return np.array(triplets)
+
+
+def generate_hard_triplets(labels, num_triplets, batch_size):
+    def create_indices(_labels):
+        inds = dict()
+        for idx, ind in enumerate(_labels):
+            if ind not in inds:
+                inds[ind] = []
+            inds[ind].append(idx)
+        return inds
+    triplets = []
+    indices = create_indices(np.asarray(labels))
+    unique_labels = np.unique(np.asarray(labels))
+    n_classes = unique_labels.shape[0]
     # add only unique indices in batch
     already_idxs = set()
     
     for x in tqdm(range(num_triplets)):
         if len(already_idxs) >= batch_size:
             already_idxs = set()
+        c1 = np.random.randint(0, n_classes)
+        while c1 in already_idxs:
+            c1 = np.random.randint(0, n_classes)
+        already_idxs.add(c1)
+        c2 = np.random.randint(0, n_classes)
+        while c1 == c2:
+            c2 = np.random.randint(0, n_classes)
+        if len(indices[c1]) == 2:  # hack to speed up process
+            n1, n2 = 0, 1
+        else:
+            n1 = np.random.randint(0, len(indices[c1]))
+            n2 = np.random.randint(0, len(indices[c1]))
+            while n1 == n2:
+                n2 = np.random.randint(0, len(indices[c1]))
+        n3 = np.random.randint(0, len(indices[c2]))
+        triplets.append([indices[c1][n1], indices[c1][n2], indices[c2][n3]])
+    return np.array(triplets)
+
+
+def generate_semihard_triplets(labels, num_triplets, batch_size):
+    def create_indices(_labels):
+        inds = dict()
+        for idx, ind in enumerate(_labels):
+            if ind not in inds:
+                inds[ind] = []
+            inds[ind].append(idx)
+        return inds
+    triplets = []
+    indices = create_indices(np.asarray(labels))
+    unique_labels = np.unique(np.asarray(labels))
+    n_classes = unique_labels.shape[0]
+
+    # add only unique indices in batch
+    already_idxs = set() # initiate as empty set
+    
+    for x in tqdm(range(num_triplets)):
+        if len(already_idxs) >= batch_size:
+            already_idxs = set() # start new batch of triplets
         c1 = np.random.randint(0, n_classes)
         while c1 in already_idxs:
             c1 = np.random.randint(0, n_classes)
@@ -206,12 +286,13 @@ class HPatches():
 
 class DataGeneratorDesc(keras.utils.Sequence):
     # 'Generates data for Keras'
-    def __init__(self, data, labels, num_triplets = 1000000, batch_size=50, dim=(29,29), n_channels=1, shuffle=True):
+    def __init__(self, data, labels, num_triplets = 1000000, batch_size=128, mining_strategy=0, dim=(29,29), n_channels=1, shuffle=True):
         # 'Initialization'
         self.transform = None
         self.out_triplets = True
         self.dim = dim
         self.batch_size = batch_size
+        self.mining_strategy = mining_strategy
         self.n_channels = n_channels
         self.shuffle = shuffle
         self.data = data
@@ -260,7 +341,15 @@ class DataGeneratorDesc(keras.utils.Sequence):
         return {'a': img_a, 'p': img_p, 'n': img_n}, y
 
     def on_epoch_end(self):
-        self.triplets = generate_triplets(self.labels, self.num_triplets, 32)
+        if self.mining_strategy == 1:
+            # hard mine negatives
+            self.triplets = generate_hard_triplets(self.labels, self.num_triplets, self.batch_size)
+        elif self.mining_strategy == 2:
+            # semi-hard negatives
+            self.triplets = generate_semihard_triplets(self.labels, self.num_triplets, self.batch_size)
+        else:
+            # randomly select negatives
+            self.triplets = generate_triplets(self.labels, self.num_triplets, self.batch_size)
 
         # # Use model to generate descriptors for dataset
         # descriptors = get_descriptors_for_dataset(model, self.data)

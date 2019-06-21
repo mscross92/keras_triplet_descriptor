@@ -19,13 +19,14 @@ tps = ['ref','e1','e2','e3','e4','e5','h1','h2','h3','h4','h5',\
 
 
 
+
 class DenoiseHPatches(keras.utils.Sequence):
     """Class for loading an HPatches sequence from a sequence folder"""
     itr = tps
     def __init__(self, seqs, batch_size = 32):
         self.all_paths = []
         self.batch_size = batch_size
-        self.dim = (32, 32)
+        self.dim = (29, 29)
         self.n_channels = 1
         self.sequences = {}
         self.sequences_n = {}
@@ -37,7 +38,7 @@ class DenoiseHPatches(keras.utils.Sequence):
                 im_path = os.path.join(base, t + '.png')
                 img_n = cv2.imread(im_path.replace('.png', '_noise.png'), 0)
                 img = cv2.imread(im_path, 0)
-                N = img.shape[0] / 32
+                N = img.shape[0] / 29
                 seq_im = np.array(np.split(img, N),
                                   dtype=np.uint8)
                 seq_im_n = np.array(np.split(img_n, N),
@@ -88,7 +89,7 @@ class hpatches_sequence_folder:
         for t in self.itr:
             im_path = os.path.join(base, t+noise_path+'.png')
             im = cv2.imread(im_path,0)
-            self.N = im.shape[0]/32
+            self.N = im.shape[0]/29
             setattr(self, t, np.split(im, self.N))
 
 
@@ -189,7 +190,7 @@ class HPatches():
                 n_patches = int(h / w)
                 for i in range(n_patches):
                     patch = image[i * (w): (i + 1) * (w), 0:w]
-                    patch = cv2.resize(patch, (32, 32))
+                    patch = cv2.resize(patch, (29, 29))
                     patch = np.array(patch, dtype=np.uint8)
                     patches.append(patch)
                     labels.append(i + counter)
@@ -204,7 +205,7 @@ class HPatches():
 
 class DataGeneratorDesc(keras.utils.Sequence):
     # 'Generates data for Keras'
-    def __init__(self, data, labels, num_triplets = 1000000, batch_size=50, dim=(32,32), n_channels=1, shuffle=True):
+    def __init__(self, data, labels, num_triplets = 1000000, batch_size=50, dim=(29,29), n_channels=1, shuffle=True):
         # 'Initialization'
         self.transform = None
         self.out_triplets = True

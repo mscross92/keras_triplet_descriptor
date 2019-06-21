@@ -54,7 +54,7 @@ def plot_denoise(denoise_model):
     plt.gca().set_yticks([])
     plt.show()
 
-def generate_desc_csv(descriptor_model, seqs_test, denoise_model=None, use_clean=False, curr_desc_name='custom'):
+def generate_desc_csv(descriptor_model, seqs_test, denoise_model=None, use_clean=True, curr_desc_name='custom'):
     """Plots a noisy patch, denoised patch and clean patch.
     Args:
         descriptor_model: keras model used to generate descriptor
@@ -62,7 +62,7 @@ def generate_desc_csv(descriptor_model, seqs_test, denoise_model=None, use_clean
                        will pass noisy patch directly to the descriptor model
         seqs_test: CSVs will be generated for sequences in seq_test
     """
-    w = 32
+    w = 29
     bs = 128
     output_dir = './out'
     if not os.path.exists(output_dir):
@@ -83,9 +83,9 @@ def generate_desc_csv(descriptor_model, seqs_test, denoise_model=None, use_clean
             for i, patch in enumerate(getattr(seq, tp)):
                 n_patches += 1
 
-            patches_for_net = np.zeros((n_patches, 32, 32, 1))
+            patches_for_net = np.zeros((n_patches, 29, 29, 1))
             for i, patch in enumerate(getattr(seq, tp)):
-                patches_for_net[i, :, :, 0] = cv2.resize(patch[0:w, 0:w], (32,32))
+                patches_for_net[i, :, :, 0] = cv2.resize(patch[0:w, 0:w], (29,29))
             ###
             outs = []
             

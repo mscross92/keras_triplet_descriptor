@@ -170,7 +170,7 @@ def get_hard_negs(desc_x,a_idx,class_idxs):
     m = np.column_stack((negs_dist,negs_idx))
 
     # sort descending by distance
-    m = m[m[:,0].argsort()
+    m = m[:,0].argsort()
     print(m[0][0])
     print(m[0][1])
 

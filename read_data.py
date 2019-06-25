@@ -163,7 +163,7 @@ def get_hard_negs(desc_x,a_idx,class_idxs):
             negs_idx.append(ii)
     
     # concat ids and distances in a matrix
-    m = np.concatenate((negs_dist,negs_idx),axis=1)
+    m = np.column_stack(negs_dist,negs_idx)
     print(len(negs_dist))
     print(m.shape)
 

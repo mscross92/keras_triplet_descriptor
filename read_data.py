@@ -166,11 +166,11 @@ def get_hard_negs(desc_x,a_idx,class_idxs):
     
     # concat ids and distances in a matrix
     negs_dist = tf.Session().run(negs_dist)
-    
+
     m = np.column_stack((negs_dist,negs_idx))
 
     # sort descending by distance
-    m = m[m[:,0].argsort()[::-1]]
+    m = m[m[:,0].argsort()
     print(m[0][0])
     print(m[0][1])
 

@@ -11,14 +11,15 @@ import keras
 from tqdm import tqdm
 import glob
 import random
+import tensorflow as tf
 
 splits = ['a']
 # tps = ['0','1','2','3','4','5','6','7','8','9','10',\
 #        '11','12','13','14','15','16','17','18']
-tps = ['0','1','2','3','4','5','6','7','8','9','10',\
-       '11']
+# tps = ['0','1','2','3','4','5','6','7','8','9','10',\
+#        '11']
 
-# tps = ['0','1','2','3','4']
+tps = ['0','1','2','3','4']
 
 
 
@@ -138,8 +139,41 @@ def generate_triplets(labels, num_triplets, batch_size):
 
     return np.array(triplets)
 
+def get_current_descriptors(x,model):
+        x = np.expand_dims(x, -1)
+        desc = model.predict(x=x)
+        return desc
 
-def generate_hard_triplets(labels, num_triplets, batch_size):
+# input: index 
+def get_hard_negs(desc_x,a_idx,class_idxs):
+
+    # anchor descriptor
+    desc_a = desc_x[a_idx]
+
+    # get distance from anchor and all other descriptors
+
+    # add to distance vector if from a different class to anchor
+    negs_idx = []
+    negs_dist = []
+    for ii,dsc in enumerate(desc_x):
+        if ii not in class_idxs:
+            # compute distance
+            d = tf.norm(desc_a - dsc, axis=-1)
+            negs_dist.append(d)
+            negs_idx.append(ii)
+    
+    # concat ids and distances in a matrix
+    m = np.concatenate(negs_dist,negs_idx)
+
+    # sort descending by distance
+    m = m[m[:,0].argsort()[::-1]]
+    print(m[0][0])
+    print(m[0][1])
+
+    # return indices for first K neighbours - currently returning all!
+    return m[1]
+    
+def generate_hard_triplets(labels, num_triplets, batch_size, descrptrs):
     def create_indices(_labels):
         inds = dict()
         for idx, ind in enumerate(_labels):
@@ -157,13 +191,14 @@ def generate_hard_triplets(labels, num_triplets, batch_size):
     for x in tqdm(range(num_triplets)):
         if len(already_idxs) >= batch_size:
             already_idxs = set()
+        
+        # randomly select anchor class
         c1 = np.random.randint(0, n_classes)
-        while c1 in already_idxs:
+        while c1 in already_idxs: # ensuring class isnt already in batch
             c1 = np.random.randint(0, n_classes)
         already_idxs.add(c1)
-        c2 = np.random.randint(0, n_classes)
-        while c1 == c2:
-            c2 = np.random.randint(0, n_classes)
+
+        # select indices for specific positive and anchor samples
         if len(indices[c1]) == 2:  # hack to speed up process
             n1, n2 = 0, 1
         else:
@@ -171,46 +206,24 @@ def generate_hard_triplets(labels, num_triplets, batch_size):
             n2 = np.random.randint(0, len(indices[c1]))
             while n1 == n2:
                 n2 = np.random.randint(0, len(indices[c1]))
-        n3 = np.random.randint(0, len(indices[c2]))
-        triplets.append([indices[c1][n1], indices[c1][n2], indices[c2][n3]])
-    return np.array(triplets)
+        
+        indx = indices[c1][n1] # anchor index
 
-
-def generate_semihard_triplets(labels, num_triplets, batch_size):
-    def create_indices(_labels):
-        inds = dict()
-        for idx, ind in enumerate(_labels):
-            if ind not in inds:
-                inds[ind] = []
-            inds[ind].append(idx)
-        return inds
-    triplets = []
-    indices = create_indices(np.asarray(labels))
-    unique_labels = np.unique(np.asarray(labels))
-    n_classes = unique_labels.shape[0]
-
-    # add only unique indices in batch
-    already_idxs = set() # initiate as empty set
-    
-    for x in tqdm(range(num_triplets)):
-        if len(already_idxs) >= batch_size:
-            already_idxs = set() # start new batch of triplets
-        c1 = np.random.randint(0, n_classes)
-        while c1 in already_idxs:
-            c1 = np.random.randint(0, n_classes)
-        already_idxs.add(c1)
-        c2 = np.random.randint(0, n_classes)
-        while c1 == c2:
-            c2 = np.random.randint(0, n_classes)
-        if len(indices[c1]) == 2:  # hack to speed up process
-            n1, n2 = 0, 1
+        # check if anchor index has hard negatives
+        negative_indices = get_hard_negs(descrptrs,indx,indices[c1])
+        if(len(negative_indices)>0):
+            # randomly select a hard negative from hardest 7 (as in hardnet!)
+            negative_indx = random.choice(negative_indices[:7])
         else:
-            n1 = np.random.randint(0, len(indices[c1]))
-            n2 = np.random.randint(0, len(indices[c1]))
-            while n1 == n2:
-                n2 = np.random.randint(0, len(indices[c1]))
-        n3 = np.random.randint(0, len(indices[c2]))
-        triplets.append([indices[c1][n1], indices[c1][n2], indices[c2][n3]])
+            # randomly select any negative
+            c2 = np.random.randint(0, n_classes)
+            while c1 == c2:
+                c2 = np.random.randint(0, n_classes)
+            n3 = np.random.randint(0, len(indices[c2]))
+            negative_indx = indices[c2][n3]
+
+        triplets.append([indices[c1][n1], indices[c1][n2], negative_indx])
+
     return np.array(triplets)
 
 
@@ -288,7 +301,7 @@ class HPatches():
 
 class DataGeneratorDesc(keras.utils.Sequence):
     # 'Generates data for Keras'
-    def __init__(self, data, labels, num_triplets = 1000000, batch_size=128, mining_strategy=0, dim=(29,29), n_channels=1, shuffle=True):
+    def __init__(self, data, labels, num_triplets = 1000000, batch_size=128, mdl = None, mining_strategy=0, dim=(29,29), n_channels=1, shuffle=True):
         # 'Initialization'
         self.transform = None
         self.out_triplets = True
@@ -300,7 +313,9 @@ class DataGeneratorDesc(keras.utils.Sequence):
         self.data = data
         self.labels = labels
         self.num_triplets = num_triplets
+        self.mdl = mdl
         self.on_epoch_end()
+        
 
     def get_image(self, t):
         def transform_img(img):
@@ -343,28 +358,17 @@ class DataGeneratorDesc(keras.utils.Sequence):
         return {'a': img_a, 'p': img_p, 'n': img_n}, y
 
     def on_epoch_end(self):
-        if self.mining_strategy == 1:
-            # hard mine negatives
-            self.triplets = generate_hard_triplets(self.labels, self.num_triplets, self.batch_size)
-        elif self.mining_strategy == 2:
-            # semi-hard negatives
-            self.triplets = generate_semihard_triplets(self.labels, self.num_triplets, self.batch_size)
+        if self.mining_strategy>0:
+
+            if self.mdl is not None:
+                # get current descriptors
+                self.descriptors = get_current_descriptors(self.data,self.mdl)
+
+                # get triplets, hard negative mining using descriptors
+                self.triplets = generate_hard_triplets(self.labels, self.num_triplets, self.batch_size,self.descriptors)
+            else:
+                # randomly select negatives
+                self.triplets = generate_triplets(self.labels, self.num_triplets, self.batch_size)
         else:
             # randomly select negatives
             self.triplets = generate_triplets(self.labels, self.num_triplets, self.batch_size)
-
-        # # Use model to generate descriptors for dataset
-        # descriptors = get_descriptors_for_dataset(model, self.data)
-        # np.save('descriptors.npy', descriptors)
-        # descriptors = np.load('descriptors.npy')
-
-        # # identify closest descriptor to patch (from a different sequence)
-        # hard_negatives = get_hard_negatives(self.data, descriptors)
-        # np.save('descriptors_min_dist.npy', hard_negatives)
-        # hard_negatives = np.load('descriptors_min_dist.npy')
-
-        # 'Updates indexes after each epoch'
-        # self.triplets = generate_triplets(self.labels, hard_negatives, self.num_triplets, 32)
-
-    
-    

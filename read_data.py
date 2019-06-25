@@ -164,6 +164,7 @@ def get_hard_negs(desc_x,a_idx,class_idxs):
     
     # concat ids and distances in a matrix
     m = np.concatenate((negs_dist,negs_idx))
+    print(m.shape)
 
     # sort descending by distance
     m = m[m[:,0].argsort()[::-1]]

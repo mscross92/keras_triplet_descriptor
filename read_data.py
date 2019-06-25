@@ -170,20 +170,10 @@ def get_hard_negs(desc_x,a_idx,class_idxs):
     m = np.column_stack((negs_idx,negs_dist))
 
     # sort descending by distance
-    print(m.shape)
-    print(m[0,0])
-    print(m[0,1])
-    print(m[1,0])
-    print(m[1,1])
     m = m[m[:,1].argsort()]
-    print(m.shape)
-    print(m[0,0])
-    print(m[0,1])
-    print(m[1,0])
-    print(m[1,1])
 
     # return indices for first K neighbours - currently returning all!
-    return m[1]
+    return m[0]
     
 def generate_hard_triplets(labels, num_triplets, batch_size, descrptrs):
     def create_indices(_labels):
@@ -225,7 +215,7 @@ def generate_hard_triplets(labels, num_triplets, batch_size, descrptrs):
         negative_indices = get_hard_negs(descrptrs,indx,indices[c1])
         if(len(negative_indices)>0):
             # randomly select a hard negative from hardest 7 (as in hardnet!)
-            negative_indx = random.choice(negative_indices[:7])
+            negative_indx = int(random.choice(negative_indices[:7]))
         else:
             # randomly select any negative
             c2 = np.random.randint(0, n_classes)
